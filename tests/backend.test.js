@@ -43,12 +43,12 @@ const ctx={PropertiesService:{getScriptProperties:()=>({getProperty:k=>props[k]|
  ContentService:{createTextOutput:t=>({t,setMimeType(){return this}}),MimeType:{JSON:1,JAVASCRIPT:2}},Logger:{log:console.log},console,__answers:[]};
 // base de RRHH ficticia
 const base=ss.insertSheet('Base_de_estudiantes');
-base.d=[['sede','modalidad','anho_plan_estudio','carrera','semestre_pertenencia','primer_nombre','segundo_nombre','primer_apellido','segundo_apellido','ci','nacionalidad','correo_institucional','celular'],
- ['CBB','PRESENCIAL',2026,'NGE',1,'JUAN','CARLOS','PEREZ','LOPEZ','1','BOLIVIANA','cbbe.juancarlos.perez.lo@unifranz.edu.bo','7'],
- ['LPZ','PRESENCIAL',2026,'ICO',1,'ANA','','ROJAS','VARGAS','2','BOLIVIANA','LPZE.ana.rojas.va@unifranz.edu.bo ','7'],
- ['SCZ','PRESENCIAL',2026,'GAS',1,'LUIS','','PAZ','SOTO','3','BOLIVIANA','scze.luis.paz.so@unifranz.edu.bo','7'],
- ['SCZ','PRESENCIAL',2017,'ARQ',2,'MARIA','','DIAZ','CRUZ','4','BOLIVIANA','scze.maria.diaz.cr@unifranz.edu.bo','7'],
- ['EAT','PRESENCIAL',2026,'MED',1,'ROSA','','MAMANI','QUISPE','5','BOLIVIANA','eate.rosa.mamani.qu@unifranz.edu.bo','7']];
+base.d=[['sede','anho_plan_estudio','carrera','primer_nombre','segundo_nombre','primer_apellido','segundo_apellido','ci','correo_institucional','celular'],   // formato de la base actual (sin semestre ni modalidad)
+ ['CBB',2026,'NGE','JUAN','CARLOS','PEREZ','LOPEZ','1','cbbe.juancarlos.perez.lo@unifranz.edu.bo','7'],
+ ['LPZ',2026,'ICO','ANA','','ROJAS','VARGAS','2','LPZE.ana.rojas.va@unifranz.edu.bo ','7'],
+ ['SCZ',2026,'GAS','LUIS','','PAZ','SOTO','3','scze.luis.paz.so@unifranz.edu.bo','7'],
+ ['SCZ',2017,'ARQ','MARIA','','DIAZ','CRUZ','4','scze.maria.diaz.cr@unifranz.edu.bo','7'],
+ ['EAT',2026,'MED','ROSA','','MAMANI','QUISPE','5','eate.rosa.mamani.qu@unifranz.edu.bo','7']];
 vm.createContext(ctx);vm.runInContext(code,ctx);
 const J=o=>JSON.stringify(o);
 ctx.configuracionInicial();
@@ -61,9 +61,9 @@ console.log('validar mayus',J(get('validar',{correo:'lpze.ana.rojas.va@unifranz.
 console.log('validar plan 2017',J(get('validar',{correo:'scze.maria.diaz.cr@unifranz.edu.bo'})));
 console.log('validar nada',J(get('validar',{correo:'x.y@unifranz.edu.bo'})));
 // alumno nuevo agregado a la base despues del padron
-base.d.push(['CBB','PRESENCIAL',2026,'PSI',1,'NUEVO','','ALUMNO','X','6','B','cbbe.nuevo.alumno.x@unifranz.edu.bo','7']);
+base.d.push(['CBB',2026,'PSI','NUEVO','','ALUMNO','X','6','cbbe.nuevo.alumno.x@unifranz.edu.bo','7']);
 console.log('validar nuevo en base',J(get('validar',{correo:'cbbe.nuevo.alumno.x@unifranz.edu.bo'})).slice(0,160),'padron rows',ss.getSheetByName('PADRON').getLastRow()-1, ss.getSheetByName('PADRON').formulas[(ss.getSheetByName('PADRON').getLastRow())+',12']);
-const pl={id:'ES-AAAAA-BBBBBB',correo:'cbbe.juancarlos.perez.lo@unifranz.edu.bo',sede:'Cochabamba',sede_cod:'CBB',carrera:'Ingeniería Comercial',carrera_cod:'ICO',datos_corregidos:true,p04:'Sí',p05:4,p06:5,p07:3,p08:2,p09:'Notas',p10:4,p11:5,p12:'=mal',r01_idx:[1,2,3,4],r02:4,r03:5,r04:'',dur_s:90,movil:true,version:'2.0'};
+const pl={id:'ES-AAAAA-BBBBBB',correo:'cbbe.juancarlos.perez.lo@unifranz.edu.bo',sede:'Cochabamba',sede_cod:'CBB',carrera:'Ingeniería Comercial',carrera_cod:'ICO',datos_corregidos:false,semestre:2,p03:'Segundo',p04:'Tengo algo de conocimiento, pero requiero más información',p05:4,p06:5,p07:3,p08:2,p09:'Notas',p10:4,p11:5,p12:'=mal',r01_idx:[1,2,3,4],r02:4,r03:5,r04:'',dur_s:90,movil:true,version:'2.1'};
 const post=d=>JSON.parse(ctx.doPost({postData:{contents:J({action:'guardar',data:d})}}).t);
 console.log('guardar',J(post(pl)));
 console.log('guardar dup id',J(post(pl)));
@@ -71,6 +71,11 @@ console.log('guardar otro id mismo correo',J(post({...pl,id:'ES-CCCCC-DDDDDD'}))
 console.log('validar ya',J(get('validar',{correo:pl.correo})));
 const R=ss.getSheetByName('RESPUESTAS'),H=ctx.cabResp_();
 H.forEach((h,i)=>{ if(i<14||i>=22&&i<36) console.log(i+1,h.slice(0,40),'=>',J(R.get(2,i+1)).slice(0,50))});
+const val=t=>R.get(2,H.findIndex(h=>h.indexOf(t)===0)+1);
+const esper={'3. ':2,'2. ':'Negocios y Gestión Empresarial','4. ':'Tengo algo de conocimiento, pero requiero más información','9. ':'Notas','12. ':"'=mal",'RRDDTT 1. ':'Herramientas de creación y diseño | Plataformas de gestión y evaluación | Recursos audiovisuales y multimedia','RRDDTT 2.':4,'RRDDTT 3.':5};
+Object.keys(esper).forEach(k=>{ if(val(k)!==esper[k]){console.error('FALLA:',k,'=>',J(val(k)),'esperado',J(esper[k]));process.exit(1)} });
+if(ctx.filaResp_({...pl,p04:'Tal vez'},'ES-X','x',null).length!==H.length){console.error('FALLA: fila y cabecera no coinciden');process.exit(1)}
+if(ctx.filaResp_({...pl,p04:'Tal vez'},'ES-X','x',null)[H.findIndex(h=>h.indexOf('4. ')===0)]!==''){console.error('FALLA: p04 debe validarse');process.exit(1)}
 // cerrar
 ctx.menuCerrar(); console.log('cerrada',J(get('validar',{correo:'lpze.ana.rojas.va@unifranz.edu.bo'}))); ctx.menuAbrir();
 // anular
@@ -91,7 +96,7 @@ console.log('prueba',J(post({id:'PRUEBA-XYZ12',correo:'prueba@unifranz.edu.bo',s
 // nuevo periodo
 ctx.__answers=['I-2027']; ctx.menuNuevoPeriodo(); console.log('sheets',ss._sheets.map(s=>s.name).join(','),'resp rows',R.getLastRow()-1, 'periodo', ctx.config_().periodo);
 ctx.menuEstado();
-const rs=ss.getSheetByName('RESUMEN'); for(let r=1;r<=14;r++) console.log(r,[1,2,3,4].map(c=>String(rs.get(r,c)).slice(0,90)).join(' || '));
+const rs=ss.getSheetByName('RESUMEN'); for(let r=1;r<=rs.getLastRow();r++) console.log(r,[1,2,3,4].map(c=>String(rs.get(r,c)).slice(0,90)).join(' || '));
 // tope de filas de prueba
 const pr=i=>JSON.parse(ctx.doPost({postData:{contents:JSON.stringify({action:'guardar',data:Object.assign({},pl,{id:'PRUEBA-TOPE'+i,correo:'prueba@unifranz.edu.bo'})})}}).t);
 const tope=[];for(let i=0;i<8;i++){const r=pr(i);tope.push(r.ok?'ok':r.codigo)}console.log('pruebas',tope.join(','));

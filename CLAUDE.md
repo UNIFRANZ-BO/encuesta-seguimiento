@@ -26,7 +26,8 @@ archivo resume todo lo decidido allí. Léelo completo antes de tocar código.
 ## Arquitectura
 - **Front:** un solo HTML, tema oscuro futurista (campo estelar en canvas, cuadrícula animada, tarjetas de vidrio con borde cónico giratorio, warp entre pantallas, confeti). Respeta `prefers-reduced-motion`. Probado a 390 px y 1366 px.
 - **Hosting:** GitHub Pages en la organización `UNIFRANZ-BO/encuesta-seguimiento` (público, rama `main`, raíz; trasladado desde AramayoRafael el 08-oct-2026 para que el enlace no lleve el nombre de Rafael) → https://unifranz-bo.github.io/encuesta-seguimiento/ · enlace vigente `?v=3`. Vercel quedó como opción futura (enlaces de prueba, proxy para ocultar la URL del script); su plan Hobby es para uso no comercial.
-- **Backend:** Apps Script **ligado a la hoja de la base de estudiantes**. La hoja en uso es «Copia de Base de datos Estudiantes 1er semestre P2026» (id `1RHwMM_N_dRKXilPvnS87j3fFdWV5_xPO1v3aEMOFqtk`), **propiedad de la cuenta personal aramayorafael@gmail.com** (la original es de la cuenta @unifranz; pestaña de RR. HH. `Base_de_estudiantes`, ~23 000 filas, 13 columnas: sede, modalidad, anho_plan_estudio, carrera, semestre_pertenencia, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, ci, nacionalidad, correo_institucional, celular).
+- **Backend (desde 22-oct-2026, v2.1):** Apps Script ligado a **«Encuestas estudiantes Unifranz»** en la cuenta **@unifranz** (`rafael.aramayo@unifranz.edu.bo`), id `1GzFEJLjSisqOGvNOKaEvTJXFmFzv-pHHSlwuY4ogRNo`, es_BO. La armé copiando la base original de esa cuenta («Base de datos Estudiantes 1er semestre P2026», `1eRP2mob93xSsYXqAJAWr3qjyKQZQqBqBgkSUoiq03RQ`, no se tocó) y dejando en la pestaña `Base_de_estudiantes` solo los **1857 del plan 2026** con las mismas 10 columnas que `base estudiantes.xlsx` de Rafael (sede, anho_plan_estudio, carrera, nombres y apellidos, ci, correo_institucional, celular; **sin semestre ni modalidad**). Verificado contra el Excel: mismos correos, sedes, carreras y nombres. Los conectores de Google de Claude son de la cuenta @unifranz.
+- **Backend anterior (cuenta personal, queda de respaldo):** La hoja era «Copia de Base de datos Estudiantes 1er semestre P2026» (id `1RHwMM_N_dRKXilPvnS87j3fFdWV5_xPO1v3aEMOFqtk`), **propiedad de la cuenta personal aramayorafael@gmail.com** (la original es de la cuenta @unifranz; pestaña de RR. HH. `Base_de_estudiantes`, ~23 000 filas, 13 columnas: sede, modalidad, anho_plan_estudio, carrera, semestre_pertenencia, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, ci, nacionalidad, correo_institucional, celular).
 - **URL del script:** se incrusta en `API_URL_DEFECTO` dentro de `src.html`. Ya incrustada (implementación `AKfycbxHT-22…MBT0`, 07-oct-2026). Sin URL la app corre en **modo de prueba** (acepta cualquier @unifranz con datos ficticios). `?api=<url>` en la dirección permite probar otra URL sin guardarla. Triple toque en «v2.0» (abajo a la derecha) o `?admin=1` abre el panel técnico (ping, fila de prueba, reenviar pendientes).
 
 ### Lecciones técnicas (vienen de la Ficha 360, no repetir errores)
@@ -40,6 +41,14 @@ archivo resume todo lo decidido allí. Léelo completo antes de tocar código.
 - GitHub Pages cachea: repartir el enlace con `?v=N` tras cada publicación.
 - Las respuestas guardan el **correo** del estudiante (decisión de Rafael), por eso la bienvenida dice «Confidencial», no «Anónima».
 - La base tiene CI y celulares: **nunca** llevar la base al front. El script solo devuelve primer nombre, sede, carrera, semestre, plan y modalidad.
+
+## Cambios v2.1 (22-oct-2026, a pedido de Rafael: misma mejora de redacción que en la encuesta de docentes)
+- **3 Semestre**: la base nueva no trae semestre (y el de la base original es del 1er semestre, ya desactualizado) → se pregunta «Selecciona tu semestre» (Primero / Segundo). Se salta sola si algún día el padrón trae semestre. Se guarda 1 o 2 en «3. Semestre».
+- **4**: «¿Comprendes cómo los Proyectos Integradores se relacionan con tu carrera y tu futuro profesional?» → Sí / Tengo algo de conocimiento, pero requiero más información / No (columna F de `preguntas.xlsx`).
+- 5, 6, 10, 11 → «¿Qué tan satisfecho estás con…?»; 7 «están planificadas»; 8 explica codocencias «(clases compartidas entre dos o más docentes)» y «contribuyen»; 10 «te brindan … en las experiencias de aprendizaje».
+- **9** sin cambios (Notas / Aprendizaje), como pidió Rafael.
+- **RRDDTT 2 y 3**: tipo `level` (lista sin números, como docentes). RRDDTT 2: En todas o casi todas las clases (5) … No se utilizan (1). RRDDTT 3: No me ayudan (1) … Me ayudan mucho (5). RRDDTT 4: «¿Tienes sugerencias de recursos tecnológicos o didácticos, o algún comentario?».
+- Ping de calentamiento al abrir; `validar` devuelve `carreras: []`. CONFIG ya no trae Semestres/Modalidades habilitadas.
 
 ## Flujo de la app (v2.0)
 Bienvenida («13 preguntas») → **Correo** (solo se pide `@unifranz.edu.bo`; se normaliza a minúsculas sin espacios) → validación en el servidor → **Módulo 01 · Experiencia del semestre** (9 preguntas) → **Módulo 02 · Recursos didácticos y digitales** (4 preguntas) → Revisión → Envío → código de respuesta.
@@ -70,7 +79,13 @@ Bienvenida («13 preguntas») → **Correo** (solo se pide `@unifranz.edu.bo`; s
 - Menú: Abrir/Cerrar · Actualizar padrón · Ver estado · **Anular la respuesta de un estudiante** (mueve a PAPELERA y le permite responder de nuevo) · Restaurar anulada · Excluir/Reincorporar · Agregados · **Nuevo periodo** (archiva en «RESPUESTAS <periodo>») · Reconstruir RESUMEN · Borrar filas de prueba · Configuración inicial.
 - Reglas: la fila 1 de RESPUESTAS es el contrato (no reordenar ni borrar columnas; `hojaResp_` aborta si no coincide). Las columnas de las bases se buscan por nombre (alias en `COLS_BASE`). Escrituras con `LockService`. Textos que empiezan con `= + - @` se guardan con apóstrofo.
 
-## Estado y pendientes (al 07-oct-2026)
+## Estado y pendientes (22-oct-2026)
+- [x] v2.1 lista en local (app + script; pruebas OK: hoja simulada inglés/español, recorridos 390 y 1366). **No publicada**: la app v2.1 contra el script v2.0 dejaría en blanco la 4 y el semestre.
+- [x] Hoja «Encuestas estudiantes Unifranz» creada en la cuenta @unifranz con la base (1857).
+- [ ] Rafael: pegar `entregables/Codigo_Encuesta_Estudiantes.txt` (v2.1) en esa hoja, `configuracionInicial` (Pestañas de origen = Base_de_estudiantes, Planes = 2026 → 1857), Nueva implementación → pasar la URL.
+- [ ] Con la URL: incrustar, push, repartir **`?v=4`**; ping + fila de prueba. Luego cerrar la encuesta en la hoja vieja (cuenta personal; tenía 1 respuesta, revisar si es prueba).
+
+## Estado anterior (al 07-oct-2026)
 - [x] Interfaz v2.0 aprobada por Rafael, salvo detalles que vaya pidiendo.
 - [x] Script v2.0 escrito y probado solo con hoja simulada.
 - [x] Script implementado; ping y validar responden de forma anónima.

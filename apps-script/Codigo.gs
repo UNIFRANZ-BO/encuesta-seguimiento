@@ -1,6 +1,6 @@
 /** @OnlyCurrentDoc */  // el script solo puede tocar esta hoja, ningún otro archivo de Drive
 /**
- * ENCUESTA DE SEGUIMIENTO INSTITUCIONAL Y MEJORA CONTINUA · ESTUDIANTES  (v2.0)
+ * ENCUESTA DE SEGUIMIENTO INSTITUCIONAL Y MEJORA CONTINUA · ESTUDIANTES  (v2.1)
  * Backend en Google Apps Script, ligado a la hoja que contiene la base de estudiantes.
  *
  * ── PRIMERA VEZ ─────────────────────────────────────────────────────────────
@@ -21,13 +21,19 @@
  * origen, fechas, nombres de carreras, excluidos) se maneja desde la hoja, sin tocar código.
  */
 
-const VERSION_APP = '2.0';
+const VERSION_APP = '2.1';
 const ZONA = 'America/La_Paz';
 const H = {             // nombres de pestañas
   CONFIG: 'CONFIG', CARRERAS: 'CARRERAS', PADRON: 'PADRON', EXCLUIDOS: 'EXCLUIDOS',
   AGREGADOS: 'AGREGADOS', RESP: 'RESPUESTAS', PAPELERA: 'PAPELERA', RESUMEN: 'RESUMEN', BITACORA: 'BITACORA'
 };
 const SEDES = { LPZ: 'La Paz', EAT: 'El Alto', CBB: 'Cochabamba', SCZ: 'Santa Cruz' };
+// Opciones del instrumento (deben coincidir con las de la app).
+const P04 = ['Sí', 'Tengo algo de conocimiento, pero requiero más información', 'No'];
+const EVAL = ['Notas', 'Aprendizaje'];
+const USO = ['No se utilizan', 'Menos de una vez al mes', 'Aproximadamente una vez al mes', 'Varias veces al mes', 'En todas o casi todas las clases'];   // escala 1–5
+const AYUDA = ['No me ayudan', 'Me ayudan poco', 'Me ayudan moderadamente', 'Me ayudan bastante', 'Me ayudan mucho'];                               // escala 1–5
+const leyenda_ = labels => labels.map((t, i) => (i + 1) + ' = ' + t).join(' · ');
 const CAT_TEC = [
   'Herramientas de creación y diseño', 'Plataformas de gestión y evaluación', 'Recursos audiovisuales y multimedia',
   'Bases de datos y recursos de investigación', 'Simuladores y entornos interactivos', 'Recursos de investigación y análisis',
@@ -105,9 +111,7 @@ function crearConfig_() {
     ['Periodo', 'II-2026', 'Nombre del periodo. Se usa al archivar respuestas en «Nuevo periodo».'],
     ['Pestañas de origen', primeraBase_(), 'Pestañas con bases de RR. HH., separadas por punto y coma. AGREGADOS se incluye siempre.'],
     ['Planes habilitados', '2026', 'Ej.: 2026  ·  2017; 2026  ·  vacío = todos'],
-    ['Semestres habilitados', '', 'Ej.: 1  ·  1; 2  ·  vacío = todos'],
     ['Sedes habilitadas', '', 'Códigos: LPZ; EAT; CBB; SCZ  ·  vacío = todas'],
-    ['Modalidades habilitadas', '', 'Ej.: PRESENCIAL  ·  vacío = todas'],
     ['Carreras habilitadas', '', 'Códigos, ej.: NGE; ICO  ·  vacío = todas'],
     ['Mensaje de encuesta cerrada', 'La encuesta no está disponible en este momento.', 'Texto que ve el estudiante cuando está cerrada.']
   ];
@@ -330,20 +334,20 @@ function cabResp_() {
   return [
     'Marca temporal', 'ID respuesta', 'Correo', 'Nombre completo', '1. Sede', 'Cód. sede', '2. Carrera', 'Cód. carrera', '3. Semestre', 'Plan', 'Modalidad',
     'Datos corregidos por el estudiante', 'Sede según base', 'Carrera según base',
-    '4. ¿Comprendes cómo los Proyectos integradores se relacionan con tu carrera y futuro profesional?',
-    '5. Califica del 1 al 5: ¿Qué tan satisfecho te sientes con las experiencias de aprendizaje del semestre?',
-    '6. ¿Te sientes satisfecho con el aprendizaje que tienes con tus docentes?',
-    '7. ¿Percibes que las actividades experienciales del Proyecto Integrador son planificadas y coordinadas entre los docentes del semestre?',
-    '8. ¿Percibes que las codocencias contribuyeron a las experiencias de aprendizaje del Proyecto Integrador?',
+    '4. ¿Comprendes cómo los Proyectos Integradores se relacionan con tu carrera y tu futuro profesional?',
+    '5. ¿Qué tan satisfecho estás con las experiencias de aprendizaje de este semestre? (1 = Nada satisfecho · 5 = Totalmente satisfecho)',
+    '6. ¿Qué tan satisfecho estás con lo que aprendes con tus docentes? (1 = Nada satisfecho · 5 = Totalmente satisfecho)',
+    '7. ¿Percibes que las actividades experienciales del Proyecto Integrador están planificadas y coordinadas entre los docentes del semestre? (1 = Nada de acuerdo · 5 = Totalmente de acuerdo)',
+    '8. ¿Percibes que las codocencias (clases compartidas entre dos o más docentes) contribuyen a las experiencias de aprendizaje del Proyecto Integrador? (1 = Nada de acuerdo · 5 = Totalmente de acuerdo)',
     '9. ¿Sientes que tus evaluaciones se están enfocando en la calificación (notas) o en el aprendizaje que desarrollas?',
-    '10. ¿Estás satisfecho con la retroalimentación que te brinda tus docentes en las experiencias y en las evaluaciones?',
-    '11. ¿Cómo te sientes con el desarrollo del semestre?',
+    '10. ¿Qué tan satisfecho estás con la retroalimentación que te brindan tus docentes en las experiencias de aprendizaje y en las evaluaciones? (1 = Nada satisfecho · 5 = Totalmente satisfecho)',
+    '11. ¿Qué tan satisfecho estás con el desarrollo del semestre? (1 = Nada satisfecho · 5 = Totalmente satisfecho)',
     '12. Observaciones o sugerencias',
     'RRDDTT 1. ¿Qué recursos didácticos y digitales se utilizan efectivamente en tus clases? (máx. 3)'
   ].concat(CAT_TEC.map((c, i) => 'RRDDTT 1.' + (i + 1) + ' ' + c + ' (1 = sí)')).concat([
-    'RRDDTT 2. ¿Con qué frecuencia se utilizan los recursos didácticos y digitales en tu clase? (1 = Nunca · 5 = Siempre)',
-    'RRDDTT 3. ¿En qué medida los recursos que utilizas te ayudan a desarrollar tus experiencias de aprendizaje en clase? (1 = No me ayudan nada · 5 = Me ayudan siempre)',
-    'RRDDTT 4. Tienes sugerencias de algún recursos tecnológicos/didácticos y/o Comentarios',
+    'RRDDTT 2. ¿Con qué frecuencia se utilizan los recursos didácticos y digitales en tus clases? (' + leyenda_(USO) + ')',
+    'RRDDTT 3. ¿En qué medida los recursos que se utilizan te ayudan a desarrollar tus experiencias de aprendizaje en clase? (' + leyenda_(AYUDA) + ')',
+    'RRDDTT 4. ¿Tienes sugerencias de recursos tecnológicos o didácticos, o algún comentario?',
     'Duración (segundos)', 'Dispositivo', 'Fecha y hora local (dispositivo)', 'Periodo', 'Versión app', 'Datos completos (JSON)'
   ]);
 }
@@ -419,7 +423,7 @@ function validar_(correoIn) {
   if (ya) return { ok: true, habilitado: false, motivo: 'ya_respondio', fecha: fmtFecha_(ya.valores[0]) };
   const f = r.fila, nombres = nombresCarreras_();
   return {
-    ok: true, habilitado: true, carreras: listaCarrerasPadron_(),
+    ok: true, habilitado: true, carreras: [],
     estudiante: { nombre: f[2], sede: f[3], sede_nombre: f[4], carrera_cod: f[5], carrera: nombres[f[5]] || f[6], semestre: f[7], plan: f[8], modalidad: f[9] }
   };
 }
@@ -457,11 +461,13 @@ function filaResp_(d, id, correo, P) {
   const idx = Array.isArray(d.r01_idx) ? d.r01_idx.map(Number).filter(n => n >= 1 && n <= CAT_TEC.length).slice(0, 3) : [];
   P = P || [correo, 'PRUEBA', '', d.sede_cod, d.sede, d.carrera_cod, d.carrera, d.semestre, d.plan, d.modalidad];
   const corr = !!d.datos_corregidos;
+  // la base actual no trae semestre: si el padrón no lo tiene, se usa el que respondió el estudiante (pregunta 3)
+  const semCli = Number(d.semestre), sem = P[7] || (semCli >= 1 && semCli <= 10 && Math.round(semCli) === semCli ? semCli : '');
   return [
     new Date(), id, correo, P[1],
     txt_(corr ? d.sede : P[4], 40), txt_(corr ? d.sede_cod : P[3], 10), txt_(corr ? d.carrera : P[6], 80), txt_(corr ? d.carrera_cod : P[5], 10),
-    P[7], P[8], P[9], corr ? 'Sí' : 'No', corr ? P[4] : '', corr ? P[6] : '',
-    siNo_(d.p04), esc_(d.p05), esc_(d.p06), esc_(d.p07), esc_(d.p08), txt_(d.p09, 20), esc_(d.p10), esc_(d.p11), txt_(d.p12, 1000),
+    sem, P[8], P[9], corr ? 'Sí' : 'No', corr ? P[4] : '', corr ? P[6] : '',
+    opc_(d.p04, P04), esc_(d.p05), esc_(d.p06), esc_(d.p07), esc_(d.p08), opc_(d.p09, EVAL), esc_(d.p10), esc_(d.p11), txt_(d.p12, 1000),
     idx.map(n => CAT_TEC[n - 1]).join(' | ')
   ].concat(CAT_TEC.map((_, i) => idx.indexOf(i + 1) >= 0 ? 1 : 0)).concat([
     esc_(d.r02), esc_(d.r03), txt_(d.r04, 500),
@@ -471,6 +477,7 @@ function filaResp_(d, id, correo, P) {
 }
 function txt_(v, max) { let s = (v === null || v === undefined) ? '' : String(v).trim().slice(0, max || 500); if (/^[=+\-@]/.test(s)) s = "'" + s; return s; }
 function esc_(v) { const n = Number(v); return (n >= 1 && n <= 5 && Math.round(n) === n) ? n : ''; }
+function opc_(v, ops) { const s = String(v || '').trim(); return ops.indexOf(s) >= 0 ? s : ''; }
 function siNo_(v) { const s = String(v || '').trim(); return /^s/i.test(s) ? 'Sí' : /^n/i.test(s) ? 'No' : ''; }
 function existeId_(id, sh) {
   if (!id) return false;
@@ -498,8 +505,8 @@ function menuEstado() {
   if (resp && resp.getLastRow() > 1) nResp = resp.getRange(2, 2, resp.getLastRow() - 1, 1).getValues().filter(r => String(r[0]).indexOf('PRUEBA-') !== 0).length;
   aviso_('Estado de la encuesta',
     'Estado: ' + (abierta_(cfg) ? 'ABIERTA' : 'CERRADA') + '\nPeriodo: ' + cfg.periodo +
-    '\nFiltros → planes: ' + (cfg.planes.join(', ') || 'todos') + ' · semestres: ' + (cfg.semestres.join(', ') || 'todos') +
-    ' · sedes: ' + (cfg.sedes.join(', ').toUpperCase() || 'todas') + ' · modalidades: ' + (cfg.modalidades.join(', ').toUpperCase() || 'todas') +
+    '\nFiltros → planes: ' + (cfg.planes.join(', ') || 'todos') +
+    ' · sedes: ' + (cfg.sedes.join(', ').toUpperCase() || 'todas') + ' · carreras: ' + (cfg.carreras.join(', ').toUpperCase() || 'todas') +
     '\nPestañas de origen: ' + cfg.origenes.join(', ') +
     '\n\nHabilitados en el padrón: ' + nPad + '\nRespuestas recibidas: ' + nResp + (nPad ? ' (' + Math.round(nResp / nPad * 100) + '%)' : ''));
 }
@@ -632,7 +639,7 @@ function crearResumen_() {
   push(['AVANCE POR SEDE', 'Habilitados', 'Respondieron', 'Cobertura'], 'cab');
   sedes.forEach(s => { const r = rows.length + 1; push([SEDES[s], '=COUNTIF(' + P('D') + ',"' + s + '")', '=COUNTIFS(' + P('D') + ',"' + s + '",' + P('L') + ',"Respondió")', '=IFERROR(C' + r + '/B' + r + ',0)'], 'pct4'); });
   push(['']);
-  const ESC = [['5.', 'Satisfacción con las experiencias de aprendizaje'], ['6.', 'Satisfacción con el aprendizaje con docentes'], ['7.', 'Actividades planificadas y coordinadas (acuerdo)'], ['8.', 'Aporte de las codocencias (acuerdo)'], ['10.', 'Satisfacción con la retroalimentación'], ['11.', 'Cómo se siente con el desarrollo del semestre'], ['RRDDTT 2.', 'Frecuencia de uso de recursos (1 Nunca – 5 Siempre)'], ['RRDDTT 3.', 'Los recursos ayudan al aprendizaje (1 – 5)']];
+  const ESC = [['5.', 'Satisfacción con las experiencias de aprendizaje'], ['6.', 'Satisfacción con el aprendizaje con docentes'], ['7.', 'Actividades planificadas y coordinadas (acuerdo)'], ['8.', 'Aporte de las codocencias (acuerdo)'], ['10.', 'Satisfacción con la retroalimentación'], ['11.', 'Cómo se siente con el desarrollo del semestre'], ['RRDDTT 2.', 'Frecuencia de uso de recursos (1 No se utilizan – 5 En todas o casi todas)'], ['RRDDTT 3.', 'Los recursos ayudan al aprendizaje (1 No me ayudan – 5 Me ayudan mucho)']];
   push(['PROMEDIOS (escala 1 a 5)', 'General'].concat(sedes.map(s => SEDES[s])), 'cab');
   ESC.forEach(q => {
     const c = R(col(q[0] + ' '));
@@ -645,8 +652,14 @@ function crearResumen_() {
     ops.forEach(o => { push([o, '=COUNTIFS(' + c + ',"' + o + '",' + ID + ',' + real + ')', '=IFERROR(B' + (rows.length + 1) + '/$B$4,0)'], 'pct'); });
     push(['']);
   };
-  dist('4. PROYECTOS INTEGRADORES Y CARRERA', '4. ', ['Sí', 'No']);
-  dist('9. ENFOQUE DE LAS EVALUACIONES', '9. ', ['Notas', 'Aprendizaje']);
+  push(['3. SEMESTRE', 'N', '%'], 'cab');
+  [1, 2].forEach(n => { push([n === 1 ? 'Primero' : 'Segundo', '=COUNTIFS(' + R(col('3. ')) + ',' + n + ',' + ID + ',' + real + ')', '=IFERROR(B' + (rows.length + 1) + '/$B$4,0)'], 'pct'); });
+  push(['']);
+  dist('4. PROYECTOS INTEGRADORES Y CARRERA', '4. ', P04);
+  dist('9. ENFOQUE DE LAS EVALUACIONES', '9. ', EVAL);
+  const nivel = (tit, ct, ops) => { push([tit, 'N', '%'], 'cab'); ops.forEach((o, i) => push([(i + 1) + ' · ' + o, '=COUNTIFS(' + R(col(ct)) + ',' + (i + 1) + ',' + ID + ',' + real + ')', '=IFERROR(B' + (rows.length + 1) + '/$B$4,0)'], 'pct')); push(['']); };
+  nivel('RRDDTT 2. FRECUENCIA DE USO DE LOS RECURSOS', 'RRDDTT 2.', USO);
+  nivel('RRDDTT 3. LOS RECURSOS AYUDAN AL APRENDIZAJE', 'RRDDTT 3.', AYUDA);
   push(['RRDDTT 1. RECURSOS MÁS USADOS (máx. 3 por estudiante)', 'N', '% de estudiantes'], 'cab');
   CAT_TEC.forEach((c, i) => { const cc = R(col('RRDDTT 1.' + (i + 1) + ' ')); push([(i + 1) + '. ' + c, '=SUMIFS(' + cc + ',' + ID + ',' + real + ')', '=IFERROR(B' + (rows.length + 1) + '/$B$4,0)'], 'pct'); });
   push(['']);

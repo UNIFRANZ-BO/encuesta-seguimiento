@@ -275,6 +275,9 @@ button{font:inherit;color:inherit}
 .duo .opt.si.sel{box-shadow:0 0 0 1.5px var(--g) inset,0 0 34px -6px rgba(57,255,176,.65)}
 .duo .opt.no.sel{box-shadow:0 0 0 1.5px var(--r) inset,0 0 34px -6px rgba(255,61,110,.65);background:linear-gradient(135deg,rgba(255,61,110,.2),rgba(255,122,46,.12))}
 .duo .opt.no.sel .chk{background:var(--r);border-color:var(--r);box-shadow:0 0 14px var(--r)}
+.opt .lvm{flex:none;display:flex;align-items:flex-end;gap:3px;width:27px;height:21px}
+.opt .lvm i{width:4.5px;border-radius:2px;background:rgba(255,255,255,.14);transition:all .3s}
+.opt .lvm i.on{background:var(--lc);box-shadow:0 0 6px var(--lc)}
 .opts.full .opt:not(.sel){opacity:.42;filter:saturate(.4)}
 .opts.full .opt:not(.sel):hover{opacity:.6}
 .mcount.flash b{animation:flashb .6s}
@@ -492,7 +495,7 @@ details.more ol li b{color:var(--txt)}
 // ⬇⬇⬇ Pega aquí la URL de tu implementación de Apps Script (termina en /exec) ⬇⬇⬇
 const API_URL_DEFECTO = 'https://script.google.com/macros/s/AKfycbxHT-22afxKITaSkaustv9u2vEAQPKmSTd00HYpCZLo-tjgpXthRFexm4KgWnh4MBT0/exec';
 // ⬆⬆⬆ ------------------------------------------------------------------------ ⬆⬆⬆
-const VERSION = '2.0';
+const VERSION = '2.1';
 const LS_DRAFT = 'encsi_draft2', LS_COLA = 'encsi_cola1';
 const LOGO_FULL = '__LOGO_FULL__';
 const LOGO_WORD = '__LOGO_WORD__';
@@ -550,7 +553,14 @@ const CAT_DID = [
 const SAT = {lo:'Nada satisfecho', hi:'Totalmente satisfecho', viz:'face'};
 const ACU = {lo:'Nada de acuerdo', hi:'Totalmente de acuerdo', viz:'gauge'};
 const FRQ = {lo:'Nunca', hi:'Siempre', viz:'bars'};
-const AYU = {lo:'No me ayudan nada', hi:'Me ayudan siempre', viz:'gauge'};
+// Preguntas «de nivel»: lista de opciones con texto (sin números). `labels[v-1]` = texto del valor v (1 = mínimo,
+// 5 = máximo, que es lo que se guarda); `order` = orden en pantalla (el del instrumento).
+const USO = {labels:['No se utilizan','Menos de una vez al mes','Aproximadamente una vez al mes','Varias veces al mes','En todas o casi todas las clases'], order:[5,4,3,2,1]};
+const AYU = {labels:['No me ayudan','Me ayudan poco','Me ayudan moderadamente','Me ayudan bastante','Me ayudan mucho'], order:[1,2,3,4,5]};
+const NA = 'NA';
+const P04 = ['Sí','Tengo algo de conocimiento, pero requiero más información','No'];
+const SEMESTRES = ['Primero','Segundo'];
+const salta = i => STEPS[i] && STEPS[i].skip && STEPS[i].skip();
 const VCOL = ['#ff3d6e','#ff7a2e','#ffd23d','#39ffb0','#00e5ff'];
 
 const MODS = [
@@ -563,20 +573,21 @@ const MODS = [
 const STEPS = [
   {k:'correo', kind:'login', mod:0},
   {k:'m2', kind:'intro', mod:1},
-  {k:'p04', kind:'binary', mod:1, src:'E', n:4, t:'¿Comprendes cómo los Proyectos integradores se relacionan con tu carrera y futuro profesional?', opts:['Sí','No'], icons:['si','no']},
-  {k:'p05', kind:'scale', mod:1, src:'E', n:5, t:'Califica del 1 al 5: ¿Qué tan satisfecho te sientes con las experiencias de aprendizaje del semestre?', sc:SAT},
-  {k:'p06', kind:'scale', mod:1, src:'E', n:6, t:'¿Te sientes satisfecho con el aprendizaje que tienes con tus docentes?', sc:SAT},
-  {k:'p07', kind:'scale', mod:1, src:'E', n:7, t:'¿Percibes que las actividades experienciales del Proyecto Integrador son planificadas y coordinadas entre los docentes del semestre?', sc:ACU},
-  {k:'p08', kind:'scale', mod:1, src:'E', n:8, t:'¿Percibes que las codocencias contribuyeron a las experiencias de aprendizaje del Proyecto Integrador?', sc:ACU},
+  {k:'p03', kind:'choice', mod:1, src:'E', n:3, t:'Selecciona tu semestre', opts:SEMESTRES, skip:() => !!(S.perfil && S.perfil.semestre)},
+  {k:'p04', kind:'choice', mod:1, src:'E', n:4, t:'¿Comprendes cómo los Proyectos Integradores se relacionan con tu carrera y tu futuro profesional?', opts:P04},
+  {k:'p05', kind:'scale', mod:1, src:'E', n:5, t:'¿Qué tan satisfecho estás con las experiencias de aprendizaje de este semestre?', sc:SAT},
+  {k:'p06', kind:'scale', mod:1, src:'E', n:6, t:'¿Qué tan satisfecho estás con lo que aprendes con tus docentes?', sc:SAT},
+  {k:'p07', kind:'scale', mod:1, src:'E', n:7, t:'¿Percibes que las actividades experienciales del Proyecto Integrador están planificadas y coordinadas entre los docentes del semestre?', sc:ACU},
+  {k:'p08', kind:'scale', mod:1, src:'E', n:8, t:'¿Percibes que las codocencias (clases compartidas entre dos o más docentes) contribuyen a las experiencias de aprendizaje del Proyecto Integrador?', sc:ACU},
   {k:'p09', kind:'binary', mod:1, src:'E', n:9, t:'¿Sientes que tus evaluaciones se están enfocando en la calificación (notas) o en el aprendizaje que desarrollas?', opts:['Notas','Aprendizaje'], icons:['notas','apr'], numbered:true},
-  {k:'p10', kind:'scale', mod:1, src:'E', n:10, t:'¿Estás satisfecho con la retroalimentación que te brinda tus docentes en las experiencias y en las evaluaciones?', sc:SAT},
-  {k:'p11', kind:'scale', mod:1, src:'E', n:11, t:'¿Cómo te sientes con el desarrollo del semestre?', sc:SAT},
+  {k:'p10', kind:'scale', mod:1, src:'E', n:10, t:'¿Qué tan satisfecho estás con la retroalimentación que te brindan tus docentes en las experiencias de aprendizaje y en las evaluaciones?', sc:SAT},
+  {k:'p11', kind:'scale', mod:1, src:'E', n:11, t:'¿Qué tan satisfecho estás con el desarrollo del semestre?', sc:SAT},
   {k:'p12', kind:'open', mod:1, src:'E', n:12, t:'Observaciones o sugerencias', opt:true, max:1000, ph:'Escribe aquí lo que quieras compartir…'},
   {k:'m3', kind:'intro', mod:2},
   {k:'r01', kind:'multi', mod:2, src:'R', n:1, t:'¿Qué recursos didácticos y digitales se utilizan efectivamente en tus clases?', hint:'Elige hasta 3: los que más se usan en tus clases.', opts:CAT_TEC, max:MAX_R01},
-  {k:'r02', kind:'scale', mod:2, src:'R', n:2, t:'¿Con qué frecuencia se utilizan los recursos didácticos y digitales en tu clase?', sc:FRQ},
-  {k:'r03', kind:'scale', mod:2, src:'R', n:3, t:'¿En qué medida los recursos que utilizas te ayudan a desarrollar tus experiencias de aprendizaje en clase?', sc:AYU},
-  {k:'r04', kind:'open', mod:2, src:'R', n:4, t:'Tienes sugerencias de algún recursos tecnológicos/didácticos y/o Comentarios', opt:true, max:500, short:true, ph:'Escribe aquí tu sugerencia o comentario…'},
+  {k:'r02', kind:'level', mod:2, src:'R', n:2, t:'¿Con qué frecuencia se utilizan los recursos didácticos y digitales en tus clases?', sc:USO},
+  {k:'r03', kind:'level', mod:2, src:'R', n:3, t:'¿En qué medida los recursos que se utilizan te ayudan a desarrollar tus experiencias de aprendizaje en clase?', sc:AYU},
+  {k:'r04', kind:'open', mod:2, src:'R', n:4, t:'¿Tienes sugerencias de recursos tecnológicos o didácticos, o algún comentario?', opt:true, max:500, short:true, ph:'Escribe aquí tu sugerencia o comentario…'},
   {k:'review', kind:'review', mod:2}
 ];
 const QSTEPS = STEPS.filter(s => s.src);
@@ -602,6 +613,7 @@ function answered(st) {
 function fmtAns(st) {
   const v = S.a[st.k];
   if (st.kind === 'multi') return (v || []).map(i => CAT_TEC[i].n).join(' · ');
+  if (st.kind === 'level') return v === NA ? st.sc.na : v ? st.sc.labels[v - 1] : '';
   if (st.kind === 'scale') return v ? v + ' / 5' + (v == 1 ? ' — ' + st.sc.lo : v == 5 ? ' — ' + st.sc.hi : '') : '';
   return v || '';
 }
@@ -637,9 +649,10 @@ function next() {
     return;
   }
   if (S.toReview && st.kind !== 'review') { S.toReview = false; return go(STEPS.length - 1); }
-  if (S.i < STEPS.length - 1) go(S.i + 1);
+  let j = S.i + 1; while (salta(j)) j++;
+  if (j < STEPS.length) go(j);
 }
-function prev() { if (S.i > 0) go(S.i - 1, true); else showWelcome(true); }
+function prev() { let j = S.i - 1; while (j > 0 && salta(j)) j--; if (j >= 0) go(j, true); else showWelcome(true); }
 let autoT = null;
 function autoNext(ms = 650) { clearTimeout(autoT); autoT = setTimeout(next, ms); }
 
@@ -712,6 +725,8 @@ function render(el, st) {
     body = `<div class="duo"><span class="vs">${st.numbered ? 'VS' : 'O'}</span>${st.opts.map((o, i) => `<button class="opt ${v === o ? 'sel' : ''} ${st.icons[i]}" data-v="${esc(o)}" aria-pressed="${v === o}" ${optDelay(i)} ${i === 0 ? 'data-autofocus' : ''}><span class="key">${i + 1}</span>${IC[st.icons[i]]}<span class="lbl">${st.numbered ? (i + 1) + '. ' : ''}${esc(o)}</span><span class="chk">${IC.check}</span></button>`).join('')}</div>`;
   } else if (st.kind === 'scale') {
     body = scaleHtml(st, v);
+  } else if (st.kind === 'level') {
+    body = levelHtml(st, v);
   } else if (st.kind === 'multi') {
     const arr = v || [], mx = st.max || st.opts.length;
     body = `<div class="mcount"><b id="mc">${arr.length}</b> de ${mx} seleccionadas <span class="dots">${Array.from({length:mx}, (_, i) => `<i class="${i < arr.length ? 'on' : ''}"></i>`).join('')}</span></div>
@@ -719,7 +734,7 @@ function render(el, st) {
   } else if (st.kind === 'open') {
     body = `<div class="tx"><textarea id="txIn" class="${st.short ? 'short' : ''}" maxlength="${st.max}" placeholder="${esc(st.ph)}" data-autofocus>${esc(v || '')}</textarea><span class="cnt"><span id="txC">${(v || '').length}</span> / ${st.max}</span></div>`;
   }
-  const kb = st.kind === 'scale' ? 'Teclas 1–5 · Enter' : st.kind === 'binary' ? 'Teclas 1–2' : (st.kind === 'choice' ? 'Teclas A–' + keyL(st.opts.length - 1) + ' · Enter' : (st.kind === 'open' ? '' : 'Enter para continuar'));
+  const kb = st.kind === 'scale' ? 'Teclas 1–5 · Enter' : st.kind === 'binary' ? 'Teclas 1–2' : (st.kind === 'choice' ? 'Teclas A–' + keyL(st.opts.length - 1) + ' · Enter' : st.kind === 'level' ? 'Teclas A–' + keyL(st.sc.order.length - (st.sc.na ? 0 : 1)) + ' · Enter' : (st.kind === 'open' ? '' : 'Enter para continuar'));
   el.innerHTML = `<div class="card">${qHead(st)}${body}${navHtml(st, kb ? `<span class="kbd">${kb}</span>` : '')}</div>`;
   bind(el, st);
   tilt($('.card', el));
@@ -781,7 +796,7 @@ async function validarCorreo(correo) {
     await sleep(1100);
     const pre = correo.slice(0, 3).toUpperCase(), sede = SEDE_N[pre] ? pre : 'CBB';
     return {ok:true, habilitado:true, demo:true, carreras:CARRERAS_DEMO,
-      estudiante:{nombre:(correo.split('.')[1] || 'Estudiante').split('@')[0], sede, sede_nombre:SEDE_N[sede], carrera_cod:'NGE', carrera:'Negocios y Gestión Empresarial', semestre:1, plan:2026, modalidad:'PRESENCIAL'}};
+      estudiante:{nombre:(correo.split('.')[1] || 'Estudiante').split('@')[0], sede, sede_nombre:SEDE_N[sede], carrera_cod:'NGE', carrera:'Negocios y Gestión Empresarial', semestre:'', plan:2026, modalidad:''}};
   }
   return jsonp({action:'validar', correo}, 20000);
 }
@@ -812,6 +827,13 @@ function scaleHtml(st, v) {
     <div class="anchors"><span><b>1</b>= ${esc(st.sc.lo)}</span><span><b>5</b>= ${esc(st.sc.hi)}</span></div></div>`;
 }
 function readout(st, v) { return v === 1 ? '1 · ' + st.sc.lo : v === 5 ? '5 · ' + st.sc.hi : v + ' de 5'; }
+// Pregunta de nivel: opciones con letra (A, B…) y un medidor de 4 rayas (0 rayas = mínimo, 4 = máximo).
+function levelHtml(st, v) {
+  const meter = n => `<span class="lvm" style="--lc:${VCOL[n - 1]}">${[1,2,3,4].map(k => `<i class="${k <= n - 1 ? 'on' : ''}" style="height:${5 + k * 4}px"></i>`).join('')}</span>`;
+  const items = st.sc.order.map((n, j) => `<button class="opt lv ${v === n ? 'sel' : ''}" data-n="${n}" aria-pressed="${v === n}" ${optDelay(j)} ${j === 0 ? 'data-autofocus' : ''}><span class="key">${keyL(j)}</span>${meter(n)}<span class="lbl">${esc(st.sc.labels[n - 1])}</span><span class="chk">${IC.check}</span></button>`);
+  if (st.sc.na) items.push(`<button class="opt lv na ${v === NA ? 'sel' : ''}" data-n="${NA}" aria-pressed="${v === NA}" ${optDelay(items.length)}><span class="key">${keyL(items.length)}</span><span class="lvm"></span><span class="lbl">${esc(st.sc.na)}</span><span class="chk">${IC.check}</span></button>`);
+  return `<div class="opts">${items.join('')}</div>`;
+}
 let faceK = 0, faceAnim = null;
 function setFace(target, vc) {
   const m = $('#mouth'); if (!m) return;
@@ -872,6 +894,16 @@ function bind(el, st) {
       pickScale(el, st, +b.dataset.n, e.clientX, e.clientY);
     });
   }
+  if (st.kind === 'level') {
+    el.addEventListener('click', e => {
+      const b = e.target.closest('.opt'); if (!b) return;
+      const n = b.dataset.n === NA ? NA : +b.dataset.n;
+      S.a[st.k] = n;
+      $$('.opt', el).forEach(x => { const on = x === b; x.classList.toggle('sel', on); x.setAttribute('aria-pressed', on); });
+      ripple(b, e); FX.burst(e.clientX || b.getBoundingClientRect().left + 40, e.clientY || b.getBoundingClientRect().top + 20, 14, n === NA ? '#a3acd4' : VCOL[n - 1]);
+      saveDraft(); refreshNext(st); autoNext();
+    });
+  }
   if (st.kind === 'open') {
     const t = $('#txIn', el);
     t.addEventListener('input', () => { S.a[st.k] = t.value; $('#txC', el).textContent = t.value.length; saveDraft(); refreshNext(st); });
@@ -919,7 +951,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.target.closest('button')) { e.preventDefault(); return st.kind === 'review' ? null : next(); }
   if (e.key === 'Backspace' && st.src) { e.preventDefault(); return prev(); }
   if (st.kind === 'scale' && /^[1-5]$/.test(e.key)) return pickScale(el, st, +e.key);
-  if (st.kind === 'choice' && /^[a-z]$/i.test(e.key)) { const i = e.key.toUpperCase().charCodeAt(0) - 65; const b = $$('.opt', el)[i]; if (b) b.click(); }
+  if ((st.kind === 'choice' || st.kind === 'level') && /^[a-z]$/i.test(e.key)) { const i = e.key.toUpperCase().charCodeAt(0) - 65; const b = $$('.opt', el)[i]; if (b) b.click(); }
   if (st.kind === 'binary' && /^[12]$/.test(e.key)) $$('.opt', el)[+e.key - 1].click();
 });
 
@@ -949,11 +981,12 @@ function renderIntro(el, st) {
 function renderReview(el) {
   let html = '', lastMod = 0;
   QSTEPS.forEach((q, i) => {
+    if (salta(STEPS.indexOf(q))) return;
     if (q.mod !== lastMod) { lastMod = q.mod; html += `<div class="rvsec">${MODS[q.mod].l} · ${esc(MODS[q.mod].t)}</div>`; }
     const a = fmtAns(q);
-    html += `<div class="rvi" style="animation-delay:${i * 35}ms"><span class="n">${q.src}${q.nlbl ? '01' : pad(q.n)}</span><span class="q">${esc(q.t)}<span class="a ${a ? '' : 'empty'}">${a ? esc(a) : (q.opt ? 'Sin respuesta (opcional)' : 'Falta responder')}</span></span><button data-edit="${STEPS.indexOf(q)}">Editar</button></div>`;
+    html += `<div class="rvi" style="animation-delay:${i * 35}ms"><span class="n">${q.src}${q.nlbl ? '01' : pad(q.n)}</span><span class="q">${esc(q.t)}<span class="a ${a ? '' : 'empty'}">${a ? esc(a) : (q.opt ? 'Sin respuesta (opcional)' : 'Falta responder')}</span></span>${salta(STEPS.indexOf(q)) ? '' : `<button data-edit="${STEPS.indexOf(q)}">Editar</button>`}</div>`;
   });
-  const faltan = QSTEPS.filter(q => !answered(q));
+  const faltan = QSTEPS.filter(q => !salta(STEPS.indexOf(q)) && !answered(q));
   el.innerHTML = `<div class="card"><div class="notch"></div>
     <div class="qhead"><div class="qnum" data-n="OK">OK</div><div class="qmeta"><span class="tag">Revisión final</span><span class="req">${faltan.length ? `<span style="color:var(--o2)">Faltan ${faltan.length} respuestas obligatorias</span>` : 'Todo listo para enviar'}</span></div></div>
     <h2 class="qtitle">${splitWords('Revisa tus respuestas antes de enviar')}</h2>
@@ -976,9 +1009,9 @@ function buildPayload() {
   return {
     id: S.id, fecha_local: new Date().toLocaleString('es-BO', {hour12:false}),
     correo: A.correo, sede: A.sede, sede_cod: A.sede_cod, carrera: A.carrera, carrera_cod: A.carrera_cod,
-    semestre: A.semestre, plan: A.plan, modalidad: A.modalidad || '', datos_corregidos: !!A.corregido,
+    semestre: A.semestre || (A.p03 ? SEMESTRES.indexOf(A.p03) + 1 : ''), plan: A.plan, modalidad: A.modalidad || '', datos_corregidos: !!A.corregido,
     sede_base: S.perfil ? S.perfil.sede : '', carrera_base: S.perfil ? S.perfil.carrera : '',
-    p04: A.p04,
+    p03: A.p03 || '', p04: A.p04,
     p05: A.p05, p06: A.p06, p07: A.p07, p08: A.p08, p09: A.p09, p10: A.p10, p11: A.p11,
     p12: (A.p12 || '').trim(),
     r01: (A.r01 || []).map(i => CAT_TEC[i].n), r01_idx: (A.r01 || []).map(i => i + 1),
@@ -1109,9 +1142,9 @@ function showWelcome(back) {
   const el = document.createElement('section'); el.className = 'screen' + (back ? ' back' : ''); stage.appendChild(el);
   el.innerHTML = `<div class="hero">
     <div class="logoStage"><div class="orbit"></div><div class="orbit o2"></div><div class="logoWrap"><img src="${LOGO_FULL}" alt="UNIFRANZ · Universidad Privada Franz Tamayo"><div class="shine" id="shine"></div></div></div>
-    <div class="kicker">Estudiantes de 1er semestre · ${new Date().getFullYear()}</div>
+    <div class="kicker">Estudiantes · Plan 2026 · II/2026</div>
     <h1 class="htitle">${title}</h1>
-    <p class="hsub">Tu opinión sobre las experiencias de aprendizaje, los Proyectos integradores y los recursos didácticos y digitales de tus clases.</p>
+    <p class="hsub">Tu opinión sobre las experiencias de aprendizaje, los Proyectos Integradores y los recursos didácticos y digitales de tus clases.</p>
     <div class="chips"><span class="chip">${IC.lock}Confidencial</span><span class="chip">${IC.mail}Con tu correo UNIFRANZ</span><span class="chip">${IC.clock}<b>≈4</b> min</span><span class="chip">${IC.list}<b>${TOTAL_Q}</b> preguntas</span></div>
     ${hasDraft ? `<div class="resume">Tienes una encuesta en curso en este equipo.<div class="row"><button class="btn prime" id="cont"><span>Continuar donde la dejé</span>${IC.arrowR}</button><button class="btn ghost" id="fresh">Empezar de nuevo</button></div></div>`
       : `<button class="btn prime big" id="start" data-autofocus><span>Comenzar encuesta</span>${IC.arrowR}</button>`}
@@ -1148,7 +1181,7 @@ $('#admin').addEventListener('click', async e => {
   if (!API_OK) return admLog('Falta la URL /exec.');
   if (a === 'ping') { admLog('Ping…'); try { const j = await jsonp({action:'ping'}); admLog(JSON.stringify(j)); } catch (er) { admLog('Sin respuesta: ' + er.message + '. Revisa que la implementación tenga acceso "Cualquier persona".'); } }
   if (a === 'prueba') {
-    const p = {id:'PRUEBA-' + Date.now().toString(36).toUpperCase(), fecha_local:new Date().toLocaleString('es-BO'), correo:'prueba@unifranz.edu.bo', sede:'Cochabamba', sede_cod:'CBB', carrera:'Ingeniería Comercial', carrera_cod:'ICO', semestre:1, plan:2026, modalidad:'PRESENCIAL', datos_corregidos:false, sede_base:'CBB', carrera_base:'Ingeniería Comercial', p04:'Sí', p05:5, p06:4, p07:3, p08:4, p09:'Aprendizaje', p10:5, p11:4, p12:'Fila de prueba', r01:[CAT_TEC[0].n, CAT_TEC[8].n], r01_idx:[1, 9], r02:4, r03:5, r04:'', dur_s:0, movil:false, version:VERSION};
+    const p = {id:'PRUEBA-' + Date.now().toString(36).toUpperCase(), fecha_local:new Date().toLocaleString('es-BO'), correo:'prueba@unifranz.edu.bo', sede:'Cochabamba', sede_cod:'CBB', carrera:'Ingeniería Comercial', carrera_cod:'ICO', semestre:2, plan:2026, modalidad:'', datos_corregidos:false, sede_base:'CBB', carrera_base:'Ingeniería Comercial', p03:'Segundo', p04:'Sí', p05:5, p06:4, p07:3, p08:4, p09:'Aprendizaje', p10:5, p11:4, p12:'Fila de prueba', r01:[CAT_TEC[0].n, CAT_TEC[8].n], r01_idx:[1, 9], r02:4, r03:5, r04:'', dur_s:0, movil:false, version:VERSION};
     admLog('Escribiendo ' + p.id + '…'); try { const j = await enviar(p, admLog); admLog('OK ' + JSON.stringify(j)); } catch (er) { admLog('ERROR: ' + er.message); }
   }
   if (a === 'flush') { admLog('Reenviando ' + cola().length + '…'); const n = await flushCola(admLog); admLog('Enviadas: ' + n); $('#admCola').textContent = cola().length; }
@@ -1242,6 +1275,7 @@ const FX = (() => {
   $('#tickTrack').innerHTML = seq + seq;
   if (!API_OK) $('#bannerSlot').innerHTML = '<div class="banner"><div>Modo de prueba: la encuesta aún no está conectada a la base de datos. Cualquier correo @unifranz.edu.bo entra con datos ficticios y las respuestas se guardan solo en este equipo.</div></div>';
   showWelcome();
+  if (API_OK) jsonp({action:'ping'}, 20000).catch(() => {});   // calienta el servidor mientras el estudiante lee la bienvenida
   if (API_OK && cola().length) setTimeout(() => flushCola(), 2500);
   addEventListener('online', () => flushCola());
   if (QS.get('admin') === '1') setTimeout(openAdmin, 600);
